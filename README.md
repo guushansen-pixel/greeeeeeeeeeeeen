@@ -248,6 +248,17 @@ web/
 source-pdfs/         gitignored
 ```
 
+## Fertige APK
+
+Die aktuelle signierte Release-APK liegt unter [`dist/`](dist/) und lässt
+sich direkt aufs Handy laden:
+**[Vokabeltrainer-1.3.apk](https://github.com/guushansen-pixel/greeeeeeeeeeeeen/raw/main/dist/Vokabeltrainer-1.3.apk)**
+(739 KB, min. Android 7, keine Internet-Berechtigung).
+
+Auf dem Gerät muss die Installation aus unbekannten Quellen erlaubt sein.
+Im `dist/` liegt bewusst immer nur die neueste Fassung – jede weitere würde
+das Repo dauerhaft um ihre volle Größe wachsen lassen.
+
 ## Bauen und Testen
 
 ```powershell
