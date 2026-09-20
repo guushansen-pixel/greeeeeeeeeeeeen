@@ -527,7 +527,11 @@ grandmother - Oma"></textarea>
       out.push({
         key: bandId + '|' + unit.code + '|' + w.en,
         en: w.en, de: w.de, kind: w.kind || 'w',
-        unit: unit.code, sec: w.sec || ''
+        // idx = Platz in der Buchreihenfolge. Die Listen sind so sortiert,
+        // wie die Woerter im Buch drankommen - Nachbarn gehoeren deshalb
+        // fast immer zum selben Thema. In den Vorkursen (Pick-up A/B) ohne
+        // Abschnittscode ist das das einzige Themensignal.
+        unit: unit.code, sec: w.sec || '', idx: i
       });
     }
     return out;
@@ -822,7 +826,7 @@ grandmother - Oma"></textarea>
       var w = deck.words[i];
       out.push({
         key: 'my|' + deck.id + '|' + w.en,
-        en: w.en, de: w.de, kind: w.kind || 'w', unit: deck.id, sec: ''
+        en: w.en, de: w.de, kind: w.kind || 'w', unit: deck.id, sec: '', idx: i
       });
     }
     return out;
@@ -1081,26 +1085,156 @@ grandmother - Oma"></textarea>
     return item;
   }
 
+  // normalize() ist regex-lastig und laeuft beim Bauen der Optionen ueber den
+  // ganzen Wortschatz - die Ergebnisse fuer Vokabeltexte aendern sich nie.
+  var normMemo = {};
+  function normKey(s) {
+    var v = normMemo[s];
+    if (v === undefined) { v = normalize(s); normMemo[s] = v; }
+    return v;
+  }
+
+  // Grobe Wortart, ohne Woerterbuch: englische Verben stehen mit "to",
+  // deutsche Nomen werden grossgeschrieben, alles andere ist klein.
+  function wordClass(s) {
+    var t = String(s).trim();
+    if (/^to\s/i.test(t)) return 'verb';
+    if (/^[A-ZÄÖÜ]/.test(t)) return 'noun';
+    return 'other';
+  }
+
+  // 0..10 - wie aehnlich sieht ein Ablenker der richtigen Antwort?
+  function similarity(a, b) {
+    var na = normKey(a), nb = normKey(b);
+    if (!na || !nb) return 0;
+    var s = 0, i;
+    if (na.charAt(0) === nb.charAt(0)) s += 2;
+    var ld = Math.abs(na.length - nb.length);
+    if (ld === 0) s += 2; else if (ld <= 2) s += 1;
+    if (na.split(' ').length === nb.split(' ').length) s += 1;
+    var p = 0;
+    while (p < na.length && p < nb.length && na.charAt(p) === nb.charAt(p)) p++;
+    s += Math.min(3, p);
+    var q = 0;
+    while (q < na.length - p && q < nb.length - p &&
+           na.charAt(na.length - 1 - q) === nb.charAt(nb.length - 1 - q)) q++;
+    s += Math.min(2, q);
+    return s;
+  }
+
+  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
   function buildOptions(item, pool) {
     var right = item.solutions[0];
-    var seen = {}; seen[normalize(right)] = 1;
+    var i, j;
+
+    // Gesperrt: alles, was fuer dieses Wort selbst richtig waere.
+    var blocked = {};
+    for (i = 0; i < item.solutions.length; i++) blocked[normKey(item.solutions[i])] = 1;
+    for (i = 0; i < item.word.de.length; i++) blocked[normKey(item.word.de[i])] = 1;
+    blocked[normKey(item.word.en)] = 1;
+
+    // Woerter, die sich eine Uebersetzung mit dem gefragten teilen, sind
+    // keine Ablenker sondern Synonyme - "friendly" waere bei "nice" (nett;
+    // schoen; lieb) als falsch gewertet worden, obwohl es passt.
+    var itemDe = {};
+    for (i = 0; i < item.word.de.length; i++) itemDe[normKey(item.word.de[i])] = 1;
+
+    var rightClass = wordClass(right);
     var cands = [];
-    for (var i = 0; i < pool.length; i++) {
+
+    for (i = 0; i < pool.length; i++) {
       var w = pool[i];
       if (w.key === item.word.key) continue;
+
+      var clash = false;
+      for (j = 0; j < w.de.length; j++) {
+        if (itemDe[normKey(w.de[j])]) { clash = true; break; }
+      }
+      if (clash) continue;
+
       var t = item.dir === 'en2de' ? w.de[0] : w.en;
-      var n = normalize(t);
-      if (!n || seen[n]) continue;
-      seen[n] = 1;
-      cands.push({ text: t, kindMatch: w.kind === item.kind,
-                   lenDiff: Math.abs(t.length - right.length) });
+      var n = normKey(t);
+      if (!n || blocked[n]) continue;
+      blocked[n] = 1;
+
+      var score = similarity(t, right)
+        + (w.kind === item.kind ? 2 : 0)
+        + (wordClass(t) === rightClass ? 3 : 0)
+        // Gleicher Abschnitt im Buch heisst fast immer gleiches Thema -
+        // das beste Naehe-Signal, das ohne Woerterbuch zu haben ist.
+        + (w.sec && w.sec === item.word.sec ? 4 : 0)
+        // Ersatzsignal, wo es keine Abschnittscodes gibt (Pick-up A/B):
+        // die Liste steht in Buchreihenfolge, Nachbarn teilen das Thema.
+        + (w.unit === item.word.unit && typeof w.idx === 'number' &&
+           Math.abs(w.idx - item.word.idx) <= 15 ? 3 : 0);
+
+      cands.push({ text: t, score: score });
     }
-    cands.sort(function (a, b) {
-      if (a.kindMatch !== b.kindMatch) return a.kindMatch ? -1 : 1;
-      return (a.lenDiff - b.lenDiff) + (Math.random() - 0.5) * 6;
+
+    if (!cands.length) return [right];
+    cands.sort(function (a, b) { return b.score - a.score; });
+
+    // Zwei (manchmal drei) Ablenker aus dem aehnlichen Feld, der Rest klar
+    // verschieden: sonst laesst sich die richtige Antwort wegraten, ohne die
+    // Vokabel zu kennen. Gezogen wird aus dem oberen Feld statt stur von
+    // oben, damit dieselbe Vokabel nicht immer dieselben vier Optionen hat.
+    var near = Math.random() < 0.35 ? 3 : 2;
+    // Lieber wenige wirklich nahe Kandidaten als ein fester Prozentsatz: in
+    // einer thematisch bunten Unit ist der beste Fuenftel-Kandidat oft schon
+    // beliebig. Nur wenn zu wenige die Latte reissen, wird aufgefuellt.
+    var strong = [];
+    for (i = 0; i < cands.length && strong.length < 14; i++) {
+      if (cands[i].score >= 6) strong.push(cands[i]);
+    }
+    var topPool = strong.length >= near + 1 ? strong : cands.slice(0, Math.max(near + 1, 12));
+    // Der bewusst verschiedene Ablenker darf inhaltlich weit weg sein, aber
+    // nicht durch seine Laenge auffallen - sonst sticht die richtige Antwort
+    // wieder heraus und laesst sich ohne Wortkenntnis abzaehlen.
+    var maxLen = Math.max(6, Math.round(right.length * 0.6));
+    var farPool = cands.slice(Math.floor(cands.length / 2)).filter(function (c) {
+      return Math.abs(c.text.length - right.length) <= maxLen;
     });
-    var opts = [right];
-    for (var j = 0; j < cands.length && opts.length < 4; j++) opts.push(cands[j].text);
+    if (!farPool.length) farPool = cands.slice(Math.floor(cands.length / 2));
+    if (!farPool.length) farPool = cands;
+
+    var opts = [right], used = {};
+    used[normKey(right)] = 1;
+
+    // Gewichtet ziehen: vorne in der Liste (also aehnlicher) haeufiger, aber
+    // nicht immer derselbe Kandidat - sonst sieht dieselbe Vokabel bei jeder
+    // Wiederholung genau gleich aus.
+    function takeWeighted(from) {
+      for (var tries = 0; tries < 14 && from.length; tries++) {
+        var idx = Math.floor(Math.pow(Math.random(), 1.8) * from.length);
+        var c = from[idx];
+        if (!c || used[normKey(c.text)]) continue;
+        used[normKey(c.text)] = 1;
+        opts.push(c.text);
+        return true;
+      }
+      return false;
+    }
+    function take(from) {
+      for (var tries = 0; tries < 12 && from.length; tries++) {
+        var c = pickRandom(from);
+        if (used[normKey(c.text)]) continue;
+        used[normKey(c.text)] = 1;
+        opts.push(c.text);
+        return true;
+      }
+      return false;
+    }
+
+    for (i = 0; i < near && opts.length < 4; i++) takeWeighted(topPool);
+    if (opts.length < 4) take(farPool);
+    // Falls die Poole zu klein waren: mit irgendwas Uebrigem auffuellen.
+    for (i = 0; i < cands.length && opts.length < 4; i++) {
+      if (!used[normKey(cands[i].text)]) {
+        used[normKey(cands[i].text)] = 1;
+        opts.push(cands[i].text);
+      }
+    }
     return shuffle(opts);
   }
 
@@ -1332,7 +1466,9 @@ grandmother - Oma"></textarea>
   // Normalbetrieb nach aussen zu legen.
   if (/[?&]test=1/.test(location.search)) {
     window.__vt = { normalize: normalize, fold: fold, lev: lev,
-                    checkAnswer: checkAnswer, parseImport: parseImport };
+                    checkAnswer: checkAnswer, parseImport: parseImport,
+                    buildOptions: buildOptions, similarity: similarity,
+                    makeItem: makeItem, wordsOfUnit: wordsOfUnit };
   }
 
   renderHome();

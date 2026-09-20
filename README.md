@@ -111,9 +111,40 @@ gilt eine Vokabel als „sitzt" und zählt in den Fortschrittsring.
 letzten Abfrage, Zufall), davon die ersten 10/15/20 – dann gemischt. Wer eine
 Unit mehrfach übt, bekommt also zuerst das, was noch nicht sitzt.
 
-**Ablenker bei Multiple Choice** kommen aus demselben Deck, bevorzugt mit
-gleicher Wortart (`kind`) und ähnlicher Länge; nie zwei Optionen mit
-derselben Bedeutung.
+### Ablenker bei Multiple Choice
+
+Ablenker, die offensichtlich unmöglich sind, machen die Frage wertlos – man
+rät die richtige Antwort weg, ohne die Vokabel zu kennen. Die App zieht
+deshalb gezielt **zwei (manchmal drei) nahe** Ablenker und **einen deutlich
+verschiedenen**. „Nah" wird ohne Wörterbuch aus vier Signalen gebildet:
+
+| Signal | Punkte | warum |
+| --- | --- | --- |
+| Gleicher Abschnitt im Buch (`sec`) | +4 | gleicher Abschnitt = fast immer gleiches Thema |
+| Nachbarschaft in der Buchreihenfolge (±15) | +3 | Ersatzsignal, wo es keine Abschnittscodes gibt (Pick-up A/B) |
+| Gleiche grobe Wortart | +3 | `to …` = Verb, Großschreibung = Nomen, sonst klein |
+| Gleiche Art (Wort/Satz) | +2 | kein Einzelwort gegen einen ganzen Satz |
+| Schreib-Ähnlichkeit | 0–10 | Anfangsbuchstabe, Wortanfang, Wortende, Länge, Wortzahl |
+
+Gezogen wird gewichtet aus dem oberen Feld statt stur von oben – dieselbe
+Vokabel sieht bei der nächsten Runde also nicht genau gleich aus. Der
+bewusst verschiedene Ablenker darf inhaltlich weit weg sein, aber nicht durch
+seine Länge auffallen, sonst sticht die richtige Antwort wieder heraus.
+
+In der Praxis sieht das so aus:
+
+```
+red    ->  violett | rot | blau | schwarz
+three  ->  zwei | drei | ja | elf
+blau   ->  blue | pink | red | people (pl)
+wardrobe -> mehr | Keks | Küchenschrank | Kleiderschrank
+```
+
+**Nie als Ablenker** erscheint etwas, das für dieselbe Vokabel richtig wäre:
+weder eine andere Übersetzung desselben Eintrags, noch ein Wort, das sich
+eine Übersetzung mit dem gefragten teilt. Ohne diese Sperre wäre „friendly"
+bei der Frage „nice" (*nett; schön; lieb*) als falsch gewertet worden,
+obwohl es passt.
 
 ### Tolerante Prüfung bei Selbsteingabe
 
@@ -208,6 +239,11 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
 - Prüflogik: 27 Fälle über `?test=1`, alle grün – Groß/Klein, Leerraum,
   Umlaut-Umschreibungen, `ß`/`ss`, Artikel- und `to`-Präfix, Aufzählungen,
   Tippfehler-Toleranz und ihre Untergrenze
+- Ablenker: über je 300–400 gezogene Fragen in Pick-up A/B, Unit 1, 3, 5 und 6
+  in beiden Richtungen haben **96–100 %** der Fragen mindestens zwei Ablenker,
+  die in Schreibweise oder Thema nahe an der richtigen Antwort liegen; bei
+  38–62 % sind es alle drei. Immer vier Optionen, keine Dubletten, und in
+  2–12 % sticht die richtige Antwort durch ihre Länge heraus
 - Import-Parser: alle vier Trennzeichen, Mehrfach-Übersetzungen, kaputte
   Zeilen werden gezählt statt zu stören
 - Kompletter Durchlauf Multiple Choice über 10 Vokabeln bis zur Auswertung

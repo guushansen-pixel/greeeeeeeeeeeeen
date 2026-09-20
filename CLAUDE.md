@@ -31,9 +31,10 @@ jeder Lernfortschritt verschwindet beim Neuladen, ohne Fehlermeldung:
 .\tools\serve.ps1            # http://localhost:8099
 ```
 
-Mit `?test=1` an der URL liegen `normalize`, `fold`, `lev`, `checkAnswer` und
-`parseImport` unter `window.__vt` - die Antwortpruefung laesst sich damit aus
-der Konsole gegen eine Fallliste pruefen, statt sie durchzuklicken.
+Mit `?test=1` an der URL liegen `normalize`, `fold`, `lev`, `checkAnswer`,
+`parseImport`, `buildOptions`, `similarity`, `makeItem` und `wordsOfUnit`
+unter `window.__vt` - Antwortpruefung und Ablenkerqualitaet lassen sich damit
+aus der Konsole ueber hunderte Faelle messen, statt sie durchzuklicken.
 
 APK bauen - **nicht** direkt `apk-builder\new-app.ps1`/`build-apk.ps1`
 aufrufen, sondern immer ueber den eigenen Wrapper, der Portrait-Lock,
@@ -72,6 +73,13 @@ Eingabefeld verdeckt, Portrait-Lock, Keep-Screen-On, WebView-Force-Dark.
 - Beim Erweitern der Antwortpruefung immer erst die Fallliste in der Konsole
   (`?test=1`) erweitern, dann den Code - die Pruefung ist das Stueck, an dem
   die App steht oder faellt.
+- `buildOptions()` mischt bewusst nahe und weite Ablenker (Details in
+  README). Wer dort an den Gewichten dreht, misst die Wirkung ueber
+  `?test=1` an mehreren hundert gezogenen Fragen nach, nicht an drei
+  Beispielen - einzelne Ziehungen sagen bei zufaelliger Auswahl nichts.
+- `word.idx` (Platz in der Buchreihenfolge) ist kein Deko-Feld, sondern das
+  Themensignal fuer Decks ohne Abschnittscodes - beim Bauen neuer
+  Wortlisten mitsetzen.
 - Kein Audio/TTS bisher (bewusst zurueckgestellt, siehe README) - kein WebGL
   (siehe [hopper](../hopper): auf echtem Geraet stark geruckelt trotz sauberem
   Desktop-Test).
