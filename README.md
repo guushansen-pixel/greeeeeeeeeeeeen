@@ -311,11 +311,20 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
 - Kein horizontales Scrollen auf 375 px auf allen Bildschirmen
 - Helles und dunkles Theme
 
-**Noch offen – nur am Gerät (Pixel 11 Pro) prüfbar:**
+**Am Gerät bestätigt** (Pixel 11 Pro, v1.3, 20.09.2026) – das ließ sich im
+Desktop-Browser nicht prüfen:
 
-- Zurück-Wischgeste bricht die Übung nicht hart ab, sondern führt zum Start
-- Bildschirmtastatur verdeckt das Eingabefeld nicht
-- Portrait-Lock, Keep-Screen-On, WebView-Force-Dark-Verhalten
+- Zurück-Wischgeste bricht die Übung nicht hart ab, sondern führt zum Start.
+  Der Predictive-Back-Patch in `build.ps1` greift also – er war hier von
+  Anfang an dabei, statt wie bei den Geschwisterprojekten nachträglich
+  (siehe `apk-builder/CLAUDE.md`, „Bekannte Stolperstellen")
+- Die Bildschirmtastatur verdeckt das Eingabefeld nicht
+- Die Vokabelliste scrollt flüssig, auch bei einer großen Unit
+- Portrait-Lock sitzt
+
+Ohne Befund bisher: das WebView-Force-Dark-Verhalten und ob der Bildschirm
+über eine ganze Übung wach bleibt – beides fiel nicht negativ auf, wurde aber
+auch nicht gezielt gegengeprüft.
 
 ## Bewusst nicht drin
 
