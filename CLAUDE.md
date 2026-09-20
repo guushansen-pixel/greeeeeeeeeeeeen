@@ -80,6 +80,13 @@ Eingabefeld verdeckt, Portrait-Lock, Keep-Screen-On, WebView-Force-Dark.
 - `word.idx` (Platz in der Buchreihenfolge) ist kein Deko-Feld, sondern das
   Themensignal fuer Decks ohne Abschnittscodes - beim Bauen neuer
   Wortlisten mitsetzen.
+- Waehrend der Uebung haengen zwei Tastatur-Handler am selben Enter: einer
+  am Eingabefeld (prueft, `stopPropagation`) und einer am `document`
+  (schaltet weiter). `nextQuestion()` schaltet ausserdem nur weiter, wenn
+  `quiz.answered` gesetzt ist, und loescht das Flag sofort - das faengt die
+  Doppelauslösung mit dem nativen Klick des fokussierten Weiter-Knopfes ab.
+  Wer daran etwas aendert, prueft beide Wege (Tastatur und Maus) und den
+  Mehrfachklick nach.
 - Kein Audio/TTS bisher (bewusst zurueckgestellt, siehe README) - kein WebGL
   (siehe [hopper](../hopper): auf echtem Geraet stark geruckelt trotz sauberem
   Desktop-Test).

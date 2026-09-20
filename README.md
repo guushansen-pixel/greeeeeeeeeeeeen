@@ -246,7 +246,12 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
   2–12 % sticht die richtige Antwort durch ihre Länge heraus
 - Import-Parser: alle vier Trennzeichen, Mehrfach-Übersetzungen, kaputte
   Zeilen werden gezählt statt zu stören
-- Kompletter Durchlauf Multiple Choice über 10 Vokabeln bis zur Auswertung
+- Kompletter Durchlauf Multiple Choice über 10 Vokabeln bis zur Auswertung,
+  ebenso im gemischten Modus (Auswahl und Eintippen gemischt)
+- Tastatur-Ablauf mit echten Tastendrücken: der erste Enter prüft und zeigt
+  die Rückmeldung, der zweite schaltet weiter – genau eine Vokabel pro
+  Zyklus. Ein Dreifachklick auf „Weiter" springt trotzdem nur eine Vokabel
+  vor, „Weiter" ohne Antwort tut nichts
 - Fortschritt und Serie überstehen einen Reload (localStorage geprüft)
 - „Schwierige Wörter" füllt sich nach falschen Antworten
 - Kein horizontales Scrollen auf 375 px auf allen Bildschirmen

@@ -1357,6 +1357,12 @@ grandmother - Oma"></textarea>
   function pickPraise() { return praise[Math.floor(Math.random() * praise.length)]; }
 
   function nextQuestion() {
+    // Nur direkt nach einer Antwort weiterschalten, und pro Antwort genau
+    // einmal: ein Enter auf dem fokussierten Weiter-Knopf loest sowohl den
+    // Tastatur-Handler als auch den nativen Klick aus, und ein
+    // Doppeltipp/Doppelklick wuerde sonst eine Vokabel ueberspringen.
+    if (!quiz || !quiz.answered) return;
+    quiz.answered = false;
     quiz.i++;
     if (quiz.i >= quiz.items.length) { finishQuiz(); return; }
     renderQuestion();
@@ -1365,10 +1371,18 @@ grandmother - Oma"></textarea>
   $('qCheck').onclick = answerInput;
   $('qNext').onclick = nextQuestion;
   $('qInput').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); answerInput(); }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    // stopPropagation ist hier nicht Kosmetik: ohne sie blubbert derselbe
+    // Tastendruck weiter zum document-Handler unten, der dann sofort
+    // weiterschaltet - die Rueckmeldung waere nie zu sehen.
+    e.stopPropagation();
+    answerInput();
   });
   document.addEventListener('keydown', function (e) {
     if (current !== 'quiz' || !quiz || !quiz.answered) return;
+    // Doppelauslösung zusammen mit dem nativen Klick des fokussierten
+    // Weiter-Knopfes faengt nextQuestion() selbst ab.
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nextQuestion(); }
   });
 
