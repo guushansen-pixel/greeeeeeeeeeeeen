@@ -247,6 +247,63 @@
   .dialog { background: var(--card); border-radius: 18px; padding: 22px;
             max-width: 380px; width: 100%; }
 
+  /* --- Vokabelauswahl ------------------------------------------------- */
+  .pickhint { color: var(--fg-dim); font-size: 14px; margin: 2px 2px 12px; }
+  .rangebox { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+              padding: 12px 14px; margin-bottom: 12px; }
+  .rangebox input {
+    width: 72px; text-align: center; font-family: inherit; font-size: 17px;
+    color: var(--fg); background: var(--bg-soft); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 8px; min-height: 46px;
+  }
+  .rangebox button {
+    border: 1px solid var(--accent); background: none; color: var(--accent);
+    border-radius: 11px; padding: 11px 15px; cursor: pointer; font-weight: 650;
+    min-height: 46px;
+  }
+  .vlist { overflow: hidden; }
+  .vsec {
+    padding: 11px 16px; background: var(--bg-soft); font-size: 13px;
+    font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+  .vrow {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    background: none; border: none; border-bottom: 1px solid var(--border);
+    padding: 11px 14px; cursor: pointer; color: inherit; min-height: 56px;
+  }
+  .vrow:last-child { border-bottom: none; }
+  .vrow .num { width: 30px; flex: 0 0 auto; text-align: right;
+               color: var(--fg-dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .vrow .cb {
+    width: 24px; height: 24px; flex: 0 0 auto; border-radius: 7px;
+    border: 2px solid var(--border); position: relative;
+  }
+  .vrow[aria-pressed="true"] .cb { background: var(--accent); border-color: var(--accent); }
+  .vrow[aria-pressed="true"] .cb::after {
+    content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
+    border: solid var(--accent-fg); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+  }
+  .vrow .vw { flex: 1; min-width: 0; }
+  .vrow .ven { font-weight: 600; display: block; }
+  .vrow .vde { color: var(--fg-dim); font-size: 14px; display: block;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vrow[aria-pressed="false"] .vw { opacity: .55; }
+  .vrow .vtag { font-size: 11px; font-weight: 700; letter-spacing: .04em;
+                color: var(--fg-dim); background: var(--bg-soft); border-radius: 6px;
+                padding: 2px 6px; flex: 0 0 auto; }
+  .vrow .vbox { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto;
+                background: var(--border); }
+  .vrow .vbox.mid { background: var(--warn); }
+  .vrow .vbox.done { background: var(--ok); }
+  .pickfoot {
+    position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
+    background: var(--bg); border-top: 1px solid var(--border);
+    padding: 12px 0 14px; margin-top: 4px;
+  }
+  .pickfoot .cnt { flex: 1; font-weight: 650; }
+  .pickfoot .btn { width: auto; }
+
   .screen { display: none; }
   .screen.active { display: block; }
   .note { font-size: 13px; color: var(--fg-dim); line-height: 1.5; margin-top: 18px; }
@@ -275,7 +332,26 @@
     <div id="setupHead" style="margin-bottom:14px"></div>
     <div class="card" id="setupOpts"></div>
     <button class="btn" id="startBtn" style="margin-top:16px">Losgehen</button>
+    <div class="note" id="filterNote"></div>
     <div class="note" id="setupNote"></div>
+  </section>
+
+  <!-- ============== Vokabeln auswählen ============== -->
+  <section class="screen" id="screen-picker">
+    <div class="pickhint" id="pickHint"></div>
+    <div class="seg" id="pickQuick" style="margin-bottom:12px"></div>
+    <div class="card rangebox">
+      <span>Nur Nr.</span>
+      <input type="text" inputmode="numeric" id="rangeFrom" placeholder="1">
+      <span>bis</span>
+      <input type="text" inputmode="numeric" id="rangeTo" placeholder="20">
+      <button id="rangeBtn">Übernehmen</button>
+    </div>
+    <div class="card vlist" id="pickList"></div>
+    <div class="pickfoot">
+      <div class="cnt" id="pickCount"></div>
+      <button class="btn" id="pickDone">Fertig</button>
+    </div>
   </section>
 
   <!-- ============== Übung ============== -->
@@ -365,6 +441,7 @@ grandmother - Oma"></textarea>
   var K_PROGRESS = 'vokabeltrainer.progress.v1';
   var K_STATS    = 'vokabeltrainer.stats.v1';
   var K_DECKS    = 'vokabeltrainer.decks.v1';
+  var K_SELECT   = 'vokabeltrainer.selection.v1';
 
   function loadJSON(key, fallback) {
     try {
@@ -388,11 +465,16 @@ grandmother - Oma"></textarea>
   var progress = loadJSON(K_PROGRESS, {});
   var stats    = loadJSON(K_STATS, { days: [], sessions: 0, answers: 0 });
   var myDecks  = loadJSON(K_DECKS, []);
+  // Eingegrenzter Wortschatz je Deck: { "gl1|unit:PUA": ["gl1|PUA|apple", ...] }
+  // Kein Eintrag heisst "alles" - eine Auswahl aller Woerter wird deshalb
+  // geloescht statt gespeichert.
+  var selections = loadJSON(K_SELECT, {});
 
   function persistSettings() { saveJSON(K_SETTINGS, settings); }
   function persistProgress() { saveJSON(K_PROGRESS, progress); }
   function persistStats()    { saveJSON(K_STATS, stats); }
   function persistDecks()    { saveJSON(K_DECKS, myDecks); }
+  function persistSelections() { saveJSON(K_SELECT, selections); }
 
   // =====================================================================
   //  Kleinkram
@@ -441,19 +523,26 @@ grandmother - Oma"></textarea>
   var current = 'home';
   var pushed = false;
 
-  function showScreen(name, title, canGoBack) {
+  // back ist die Funktion, die den darüberliegenden Bildschirm zeichnet, oder
+  // null für die Startseite. Damit kommt die Vokabelauswahl zur Übungs-
+  // einstellung zurück und nicht gleich bis zum Start.
+  var backHandler = null;
+
+  function showScreen(name, title, back) {
     var all = document.querySelectorAll('.screen');
     for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
     $('screen-' + name).classList.add('active');
     current = name;
+    backHandler = back || null;
     $('headTitle').textContent = title || 'Vokabeltrainer';
-    $('backBtn').hidden = !canGoBack;
-    $('settingsBtn').hidden = !!canGoBack;
+    $('backBtn').hidden = !back;
+    $('settingsBtn').hidden = !!back;
     window.scrollTo(0, 0);
 
-    // Genau ein History-Eintrag, damit die Zurück-Geste auf dem Gerät zur
-    // Startseite führt statt die App zu schließen.
-    if (canGoBack && !pushed) { history.pushState({ app: 1 }, ''); pushed = true; }
+    // Immer nur genau ein History-Eintrag, damit die Zurück-Geste auf dem
+    // Gerät nicht erst durch einen Stapel muss. Der Eintrag wird nach einem
+    // popstate von der nächsten Ebene wieder angelegt.
+    if (back && !pushed) { history.pushState({ app: 1 }, ''); pushed = true; }
   }
 
   function goHome() {
@@ -463,10 +552,15 @@ grandmother - Oma"></textarea>
 
   window.addEventListener('popstate', function () {
     pushed = false;
+    var h = backHandler;
+    backHandler = null;
+    // h === goHome hiesse "eine Ebene über der Startseite" - das erledigt
+    // renderHome direkt, sonst liefe goHome in ein zweites history.back().
+    if (h && h !== goHome) { h(); return; }
     if (current !== 'home') renderHome();
   });
 
-  $('backBtn').onclick = goHome;
+  $('backBtn').onclick = function () { (backHandler || goHome)(); };
   $('settingsBtn').onclick = renderSettings;
 
   // =====================================================================
@@ -713,6 +807,13 @@ grandmother - Oma"></textarea>
       '<div class="chev">›</div></button>';
   }
 
+  // Hinweis auf der Startkarte, wenn der Wortschatz eingegrenzt ist -
+  // sonst wundert man sich, warum nur ein Teil abgefragt wird.
+  function selectionNote(deckId) {
+    var arr = selections[deckStoreKey(deckId)];
+    return (arr && arr.length) ? ' · ' + arr.length + ' ausgewählt' : '';
+  }
+
   function currentStreak() {
     if (!stats.days.length) return 0;
     var set = {};
@@ -724,7 +825,7 @@ grandmother - Oma"></textarea>
   }
 
   function renderHome() {
-    showScreen('home', 'Vokabeltrainer', false);
+    showScreen('home', 'Vokabeltrainer', null);
     renderBandBar();
 
     var st = currentStreak();
@@ -763,7 +864,7 @@ grandmother - Oma"></textarea>
         var as = deckStats(all);
         html += deckHtml({
           id: 'all', special: true, emoji: '🎯', name: 'Alles gemischt',
-          sub: plural(as.total, 'Vokabel', 'Vokabeln') + ' · ' + as.done + ' sitzen',
+          sub: plural(as.total, 'Vokabel', 'Vokabeln') + ' · ' + as.done + ' sitzen' + selectionNote('all'),
           ring: ringHtml(as.done, as.total)
         });
         html += deckHtml({
@@ -781,7 +882,7 @@ grandmother - Oma"></textarea>
           html += deckHtml({
             id: 'unit:' + u.code, emoji: lessonEmoji(u.code),
             name: lessonLabel(u.code, meta),
-            sub: plural(us.total, 'Vokabel', 'Vokabeln') + ' · ' + us.done + ' sitzen',
+            sub: plural(us.total, 'Vokabel', 'Vokabeln') + ' · ' + us.done + ' sitzen' + selectionNote('unit:' + u.code),
             ring: ringHtml(us.done, us.total)
           });
         }
@@ -795,7 +896,7 @@ grandmother - Oma"></textarea>
         var ms = deckStats(mw);
         html += deckHtml({
           id: 'my:' + md.id, emoji: '⭐', name: md.name,
-          sub: plural(mw.length, 'Vokabel', 'Vokabeln') + ' · ' + ms.done + ' sitzen',
+          sub: plural(mw.length, 'Vokabel', 'Vokabeln') + ' · ' + ms.done + ' sitzen' + selectionNote('my:' + md.id),
           ring: ringHtml(ms.done, ms.total)
         });
       }
@@ -862,7 +963,7 @@ grandmother - Oma"></textarea>
 
   function openEditor(deck) {
     editing = deck;
-    showScreen('editor', deck ? 'Liste bearbeiten' : 'Neue Liste', true);
+    showScreen('editor', deck ? 'Liste bearbeiten' : 'Neue Liste', goHome);
     $('edName').value = deck ? deck.name : '';
     $('edText').value = deck ? deckToText(deck) : '';
     $('edStatus').textContent = '';
@@ -900,7 +1001,21 @@ grandmother - Oma"></textarea>
   // =====================================================================
   //  Übung einstellen
   // =====================================================================
-  var deckCtx = null;   // { id, title, words }
+  var deckCtx = null;   // { id, storeKey, title, words }
+
+  // Der Schluessel fuer die gespeicherte Auswahl muss das Band enthalten -
+  // "unit:U1" gibt es in jedem Band einmal. Eigene Listen und die Demo
+  // haben ohnehin eindeutige Kennungen.
+  function deckStoreKey(id) {
+    if (id.indexOf('my:') === 0 || id === 'demo') return id;
+    return settings.band + '|' + id;
+  }
+
+  function setDeck(ctx) {
+    ctx.storeKey = deckStoreKey(ctx.id);
+    deckCtx = ctx;
+    renderSetup();
+  }
 
   function openDeck(id) {
     if (id === 'newdeck') { openEditor(null); return; }
@@ -909,13 +1024,11 @@ grandmother - Oma"></textarea>
       var deck = null;
       for (var i = 0; i < myDecks.length; i++) if (myDecks[i].id === id.slice(3)) deck = myDecks[i];
       if (!deck) return;
-      deckCtx = { id: id, title: deck.name, words: customWords(deck), deck: deck };
-      renderSetup();
+      setDeck({ id: id, title: deck.name, words: customWords(deck), deck: deck });
       return;
     }
     if (id === 'demo') {
-      deckCtx = { id: id, title: 'Demo-Liste', words: wordsOfUnit('demo', window.VOCAB_DEMO.units[0]) };
-      renderSetup();
+      setDeck({ id: id, title: 'Demo-Liste', words: wordsOfUnit('demo', window.VOCAB_DEMO.units[0]) });
       return;
     }
 
@@ -939,16 +1052,34 @@ grandmother - Oma"></textarea>
         words = wordsOfUnit(settings.band, unit);
         title = lessonLabel(code, meta);
       }
-      deckCtx = { id: id, title: title, words: words };
-      renderSetup();
+      setDeck({ id: id, title: title, words: words });
     });
   }
 
-  var secFilter = '';
+  // Ausgewaehlte Wortschluessel des aktuellen Decks, oder null fuer "alles".
+  function selectionFor(storeKey) {
+    var arr = selections[storeKey];
+    if (!arr || !arr.length) return null;
+    var set = {};
+    for (var i = 0; i < arr.length; i++) set[arr[i]] = 1;
+    return set;
+  }
+
+  // Woerter des Decks, die die gespeicherte Eingrenzung uebriglaesst.
+  function selectedWords() {
+    var set = selectionFor(deckCtx.storeKey);
+    if (!set) return deckCtx.words;
+    var out = [];
+    for (var i = 0; i < deckCtx.words.length; i++) {
+      if (set[deckCtx.words[i].key]) out.push(deckCtx.words[i]);
+    }
+    // Ein Deck kann sich geaendert haben (eigene Liste bearbeitet) - dann
+    // lieber alles ueben als nichts.
+    return out.length ? out : deckCtx.words;
+  }
 
   function renderSetup() {
-    secFilter = '';
-    showScreen('setup', deckCtx.title, true);
+    showScreen('setup', deckCtx.title, goHome);
 
     var st = deckStats(deckCtx.words);
     $('setupHead').innerHTML =
@@ -1000,15 +1131,15 @@ grandmother - Oma"></textarea>
       { v: 10, t: '10' }, { v: 15, t: '15' }, { v: 20, t: '20' }, { v: 0, t: 'alle' }
     ]);
 
-    var secs = availableSecs();
-    if (secs.length > 1) {
-      html += '<div class="row stack"><div class="lbl">Abschnitt</div><div class="seg" id="secSeg">' +
-        '<button data-sec="" class="on">alle</button>';
-      for (var i = 0; i < secs.length; i++) {
-        html += '<button data-sec="' + esc(secs[i]) + '">' + esc(secLabel(secs[i])) + '</button>';
-      }
-      html += '</div></div>';
-    }
+    // Eingegrenzter Wortschatz: fuer Hausaufgaben lernt man selten eine
+    // ganze Lektion an einem Tag.
+    var sel = selectionFor(deckCtx.storeKey);
+    var selCount = sel ? selectedWords().length : deckCtx.words.length;
+    html += '<div class="row"><div class="lbl">Vokabeln auswählen<div class="tiny muted">' +
+      (sel ? selCount + ' von ' + deckCtx.words.length + ' ausgewählt'
+           : 'alle ' + deckCtx.words.length + ' Vokabeln') + '</div></div>' +
+      '<button class="btn ghost" id="pickBtn" style="width:auto">' +
+      (sel ? 'Ändern' : 'Eingrenzen') + '</button></div>';
 
     html += '<div class="row"><div class="lbl">Nur Einzelwörter<div class="tiny muted">' +
       'Ganze Sätze weglassen</div></div>' +
@@ -1028,15 +1159,7 @@ grandmother - Oma"></textarea>
         updateStartButton();
       };
     }
-    var secBtns = $('setupOpts').querySelectorAll('#secSeg button');
-    for (var s = 0; s < secBtns.length; s++) {
-      secBtns[s].onclick = function () {
-        secFilter = this.getAttribute('data-sec');
-        for (var q = 0; q < secBtns.length; q++) secBtns[q].classList.remove('on');
-        this.classList.add('on');
-        updateStartButton();
-      };
-    }
+    $('pickBtn').onclick = openPicker;
     $('wordsOnlySw').onclick = function () {
       settings.wordsOnly = !settings.wordsOnly;
       persistSettings();
@@ -1047,21 +1170,151 @@ grandmother - Oma"></textarea>
   }
 
   function filteredWords() {
-    return deckCtx.words.filter(function (w) {
-      if (secFilter && w.sec !== secFilter) return false;
+    return selectedWords().filter(function (w) {
       if (settings.wordsOnly && w.kind === 'p') return false;
       return true;
     });
   }
 
   function updateStartButton() {
+    var chosen = selectedWords();
     var n = filteredWords().length;
     var btn = $('startBtn');
+
+    // Der Schalter "Nur Einzelwörter" kann eine von Hand getroffene Auswahl
+    // stark zusammenstreichen (Pick-up A besteht groesstenteils aus ganzen
+    // Saetzen). Das stillschweigend zu tun waere die schlechteste Variante.
+    var dropped = chosen.length - n;
+    $('filterNote').innerHTML = dropped > 0
+      ? plural(dropped, 'ausgewählte Vokabel ist ein ganzer Satz und bleibt',
+               'ausgewählte Vokabeln sind ganze Sätze und bleiben') +
+        ' wegen <b>Nur Einzelwörter</b> außen vor.'
+      : '';
+
     btn.disabled = n === 0;
     if (n === 0) { btn.textContent = 'Keine Vokabeln in dieser Auswahl'; return; }
     var take = settings.size > 0 ? Math.min(settings.size, n) : n;
     btn.textContent = 'Losgehen · ' + plural(take, 'Vokabel', 'Vokabeln');
   }
+
+  // =====================================================================
+  //  Vokabeln auswählen (Hausaufgabe eingrenzen)
+  // =====================================================================
+  var pickOn = null;   // { wortschluessel: true } waehrend des Auswaehlens
+
+  function openPicker() {
+    var sel = selectionFor(deckCtx.storeKey);
+    pickOn = {};
+    for (var i = 0; i < deckCtx.words.length; i++) {
+      var w = deckCtx.words[i];
+      pickOn[w.key] = sel ? !!sel[w.key] : true;
+    }
+    showScreen('picker', deckCtx.title, renderSetup);
+
+    $('pickHint').textContent = 'Tippe die Vokabeln an, die du heute lernen willst. ' +
+      'Die Nummern sind die Reihenfolge im Buch.';
+    $('rangeFrom').value = '';
+    $('rangeTo').value = '';
+    drawQuickChips();
+    drawPickList();
+  }
+
+  function drawQuickChips() {
+    var html = '<button data-q="all">Alle</button>' +
+               '<button data-q="none">Keine</button>' +
+               '<button data-q="open">Noch offen</button>';
+    var secs = availableSecs();
+    if (secs.length > 1) {
+      for (var i = 0; i < secs.length; i++) {
+        html += '<button data-q="sec" data-sec="' + esc(secs[i]) + '">' +
+                esc(secLabel(secs[i])) + '</button>';
+      }
+    }
+    $('pickQuick').innerHTML = html;
+    var btns = $('pickQuick').querySelectorAll('button');
+    for (var k = 0; k < btns.length; k++) {
+      btns[k].onclick = function () {
+        var q = this.getAttribute('data-q'), sec = this.getAttribute('data-sec');
+        for (var j = 0; j < deckCtx.words.length; j++) {
+          var w = deckCtx.words[j];
+          if (q === 'all') pickOn[w.key] = true;
+          else if (q === 'none') pickOn[w.key] = false;
+          else if (q === 'open') pickOn[w.key] = !isMastered(w.key);
+          else if (q === 'sec') pickOn[w.key] = (w.sec === sec);
+        }
+        drawPickList();
+      };
+    }
+  }
+
+  function drawPickList() {
+    // Bei ueber tausend Zeilen (Deck "Alles gemischt") lohnt sich ein
+    // einziger HTML-String plus Delegation statt Knopf fuer Knopf.
+    var html = '', lastSec = null, n = 0;
+    for (var i = 0; i < deckCtx.words.length; i++) {
+      var w = deckCtx.words[i];
+      if (w.sec !== lastSec) {
+        lastSec = w.sec;
+        if (w.sec) html += '<div class="vsec">' + esc(secLabel(w.sec)) + '</div>';
+      }
+      n++;
+      var box = boxOf(w.key);
+      var cls = box >= 4 ? ' done' : (box >= 2 ? ' mid' : '');
+      html += '<button class="vrow" data-i="' + i + '" aria-pressed="' +
+        (pickOn[w.key] ? 'true' : 'false') + '">' +
+        '<span class="num">' + n + '</span><span class="cb"></span>' +
+        '<span class="vw"><span class="ven">' + esc(w.en) + '</span>' +
+        '<span class="vde">' + esc(w.de.join('; ')) + '</span></span>' +
+        (w.kind === 'p' ? '<span class="vtag">Satz</span>' : '') +
+        '<span class="vbox' + cls + '" title="Box ' + box + ' von 5"></span></button>';
+    }
+    $('pickList').innerHTML = html;
+    updatePickCount();
+  }
+
+  function updatePickCount() {
+    var n = 0;
+    for (var i = 0; i < deckCtx.words.length; i++) if (pickOn[deckCtx.words[i].key]) n++;
+    $('pickCount').textContent = n + ' von ' + deckCtx.words.length + ' ausgewählt';
+    $('pickDone').disabled = n === 0;
+  }
+
+  $('pickList').addEventListener('click', function (e) {
+    var row = e.target.closest ? e.target.closest('.vrow') : null;
+    if (!row) return;
+    var w = deckCtx.words[parseInt(row.getAttribute('data-i'), 10)];
+    pickOn[w.key] = !pickOn[w.key];
+    row.setAttribute('aria-pressed', pickOn[w.key] ? 'true' : 'false');
+    updatePickCount();
+  });
+
+  $('rangeBtn').onclick = function () {
+    var total = deckCtx.words.length;
+    var from = parseInt($('rangeFrom').value, 10);
+    var to = parseInt($('rangeTo').value, 10);
+    if (isNaN(from)) from = 1;
+    if (isNaN(to)) to = total;
+    if (from > to) { var t = from; from = to; to = t; }
+    from = Math.max(1, from); to = Math.min(total, to);
+    for (var i = 0; i < total; i++) {
+      pickOn[deckCtx.words[i].key] = (i + 1 >= from && i + 1 <= to);
+    }
+    drawPickList();
+  };
+
+  $('pickDone').onclick = function () {
+    var keys = [], all = true;
+    for (var i = 0; i < deckCtx.words.length; i++) {
+      var k = deckCtx.words[i].key;
+      if (pickOn[k]) keys.push(k); else all = false;
+    }
+    // "Alles ausgewählt" wird nicht gespeichert, sondern als Eingrenzung
+    // geloescht - sonst veraltet die Liste, sobald sich das Deck aendert.
+    if (all || !keys.length) delete selections[deckCtx.storeKey];
+    else selections[deckCtx.storeKey] = keys;
+    persistSelections();
+    renderSetup();
+  };
 
   // =====================================================================
   //  Übung
@@ -1248,7 +1501,7 @@ grandmother - Oma"></textarea>
 
   function runQuiz(items, title) {
     quiz = { items: items, i: 0, good: 0, almost: 0, bad: 0, wrong: [], title: title, answered: false };
-    showScreen('quiz', title, true);
+    showScreen('quiz', title, goHome);
     renderQuestion();
   }
 
@@ -1400,7 +1653,7 @@ grandmother - Oma"></textarea>
              : pct >= 50 ? 'Auf dem Weg – dranbleiben.'
              : 'Die üben wir gleich nochmal.';
 
-    showScreen('result', 'Auswertung', true);
+    showScreen('result', 'Auswertung', goHome);
     $('resultScore').innerHTML =
       '<div class="big">' + pct + '%</div>' +
       '<div class="sub">' + hit + ' von ' + total + ' richtig' +
@@ -1433,7 +1686,7 @@ grandmother - Oma"></textarea>
   //  Einstellungen
   // =====================================================================
   function renderSettings() {
-    showScreen('settings', 'Einstellungen', true);
+    showScreen('settings', 'Einstellungen', goHome);
     var html = '';
     html += segRow('Farben', 'theme', [
       { v: 'system', t: 'System' }, { v: 'light', t: 'Hell' }, { v: 'dark', t: 'Dunkel' }

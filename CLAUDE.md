@@ -80,6 +80,17 @@ Eingabefeld verdeckt, Portrait-Lock, Keep-Screen-On, WebView-Force-Dark.
 - `word.idx` (Platz in der Buchreihenfolge) ist kein Deko-Feld, sondern das
   Themensignal fuer Decks ohne Abschnittscodes - beim Bauen neuer
   Wortlisten mitsetzen.
+- `showScreen(name, title, back)` bekommt als dritten Parameter die Funktion,
+  die den darueberliegenden Bildschirm zeichnet (oder `null` fuer den Start).
+  Es gibt bewusst immer nur **einen** History-Eintrag; nach einem `popstate`
+  legt die naechste Ebene ihn neu an. Zurueck-Knopf und Zurueck-Geste muessen
+  danach dieselbe Abfolge ergeben - beides nachpruefen, wenn sich am Router
+  etwas aendert.
+- Die Eingrenzung (`selections`) speichert Wortschluessel je Deck, nicht
+  Indizes - eine bearbeitete eigene Liste soll die Auswahl nicht verschieben.
+  "Alles ausgewaehlt" wird geloescht statt gespeichert, und `selectedWords()`
+  faellt auf das ganze Deck zurueck, wenn keiner der gespeicherten Schluessel
+  mehr existiert.
 - Waehrend der Uebung haengen zwei Tastatur-Handler am selben Enter: einer
   am Eingabefeld (prueft, `stopPropagation`) und einer am `document`
   (schaltet weiter). `nextQuestion()` schaltet ausserdem nur weiter, wenn

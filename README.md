@@ -169,6 +169,36 @@ Mit `?test=1` an der URL liegen `normalize`, `fold`, `lev`, `checkAnswer` und
 `parseImport` unter `window.__vt` zum Prüfen in der Konsole. 27 Fälle sind so
 abgedeckt (siehe „Geprüft").
 
+## Wortschatz eingrenzen (Hausaufgabe)
+
+Eine Lektion hat 84 bis 157 Vokabeln – niemand lernt die an einem Tag. Jedes
+Deck lässt sich deshalb über **Vokabeln auswählen** auf den Teil eingrenzen,
+der heute dran ist. Die Liste steht in Buchreihenfolge und ist durchnummeriert,
+damit „Nr. 1 bis 20" dem entspricht, was im Hausaufgabenheft steht.
+
+- **Bereich**: „Nur Nr. \_\_ bis \_\_" setzt die Auswahl auf genau diesen Block
+- **Schnellwahl**: *Alle*, *Keine*, *Noch offen* (alles, was noch nicht in
+  Box 4 oder 5 sitzt) und ein Knopf je Abschnitt (*Check-in*, *Station 1*, …)
+- **Einzeln antippen** für Korrekturen
+- Jede Zeile zeigt Englisch, Deutsch, einen Punkt für den Lernstand (grau →
+  gelb → grün) und die Markierung **Satz** bei ganzen Sätzen
+
+Die Auswahl wird je Deck und Band gespeichert und bleibt bis zur nächsten
+Änderung – am nächsten Tag also einfach weiterüben oder den Bereich
+verschieben. Auf der Startseite steht dann „· 19 ausgewählt" an der Karte.
+Sind alle Vokabeln ausgewählt, wird nichts gespeichert (das ist der
+Normalzustand „alles").
+
+Der frühere Filter **Abschnitt** auf dem Einstellungs-Bildschirm ist dabei
+entfallen – die Abschnitts-Knöpfe in der Auswahl können dasselbe, lassen sich
+aber kombinieren und nachbearbeiten.
+
+Zusammen mit dem Schalter *Nur Einzelwörter* kann eine Auswahl kleiner
+ausfallen als gedacht (Pick-up A besteht größtenteils aus ganzen Sätzen).
+Der Einstellungs-Bildschirm sagt das dann ausdrücklich, statt es still zu tun:
+„16 ausgewählte Vokabeln sind ganze Sätze und bleiben wegen *Nur
+Einzelwörter* außen vor."
+
 ## Eigene Listen
 
 Import per Einfügen, eine Vokabel pro Zeile. Als Trennzeichen zwischen
@@ -193,6 +223,7 @@ Liste lässt sich jederzeit wieder als Text öffnen und bearbeiten.
 | `vokabeltrainer.progress.v1` | `{ "gl1\|U1\|family tree": {box, right, wrong, last} }` |
 | `vokabeltrainer.stats.v1` | Lerntage (für die Serie), Übungen, Antworten |
 | `vokabeltrainer.decks.v1` | eigene Listen |
+| `vokabeltrainer.selection.v1` | eingegrenzter Wortschatz je Deck: `{ "gl1\|unit:U1": ["gl1\|U1\|at home", …] }` |
 
 Keys sind versioniert und namespaced – bei einer Schemaänderung neue
 Versionsnummer statt stiller Migration.
@@ -254,6 +285,15 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
   vor, „Weiter" ohne Antwort tut nichts
 - Fortschritt und Serie überstehen einen Reload (localStorage geprüft)
 - „Schwierige Wörter" füllt sich nach falschen Antworten
+- Wortschatz eingrenzen: Bereich „Nr. 5 bis 24" wählt genau diese 20, einzelnes
+  Antippen korrigiert, Abschnitts-Knopf *Check-in* wählt genau dessen 29
+  Vokabeln; die Auswahl übersteht einen Reload, steht auf der Startkarte und
+  die Übung fragt exakt die ausgewählten ab (Bereich 1–12 → 12 Vokabeln)
+- Der Hinweis zu weggefilterten Sätzen erscheint und verschwindet passend zum
+  Schalter *Nur Einzelwörter*
+- Zurück aus der Auswahl führt zur Übungseinstellung und von dort zum Start –
+  über den Knopf **und** über die Zurück-Geste (`history.back()`) gleich
+- Die längste Liste („Alles gemischt", 1.099 Zeilen) baut sich in 64 ms auf
 - Kein horizontales Scrollen auf 375 px auf allen Bildschirmen
 - Helles und dunkles Theme
 
