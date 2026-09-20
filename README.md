@@ -31,6 +31,9 @@ deshalb stehen `source-pdfs/` und `web/data/vocab.gl*.js` in `.gitignore`.
 Im Repo liegen nur Code, die beiden Skripte und eine eigene Demo-Liste. Wer
 klont, erzeugt die Daten mit den zwei Befehlen oben selbst.
 
+Der Vollständigkeit halber: eine fertig gebaute **APK unter Releases enthält
+den Wortschatz mit** – dort greift der `.gitignore` naturgemäß nicht.
+
 ### Wie die Extraktion funktioniert
 
 `build-vocab.ps1` ruft `pdftotext -table` auf (liegt bei Git für Windows
