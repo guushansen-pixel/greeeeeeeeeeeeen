@@ -98,9 +98,16 @@ Eingabefeld verdeckt, Portrait-Lock, Keep-Screen-On, WebView-Force-Dark.
   Doppelauslösung mit dem nativen Klick des fokussierten Weiter-Knopfes ab.
   Wer daran etwas aendert, prueft beide Wege (Tastatur und Maus) und den
   Mehrfachklick nach.
-- Kein Audio/TTS bisher (bewusst zurueckgestellt, siehe README) - kein WebGL
-  (siehe [hopper](../hopper): auf echtem Geraet stark geruckelt trotz sauberem
-  Desktop-Test).
+- Die Sprachausgabe liegt als echte Quelldatei unter
+  `android-src/TtsBridge.java` (nicht als PowerShell-String-Patch) und wird von
+  `build.ps1` unveraendert ins generierte Projekt kopiert - bei Aenderungen
+  dort direkt editieren. Zwei Dinge, die beim Anfassen leicht verlorengehen:
+  `window.speechSynthesis` gibt es in einer Android-WebView **nicht**, der
+  Browser-Zweig ist nur fuer den Desktop-Test da; und ohne den
+  `<queries>`-Block fuer `TTS_SERVICE` im Manifest (Patch 3) findet
+  `TextToSpeech` ab targetSdk 30 keine Engine und schweigt still.
+- Kein WebGL (siehe [hopper](../hopper): auf echtem Geraet stark geruckelt
+  trotz sauberem Desktop-Test).
 
 ## Aktueller Stand
 

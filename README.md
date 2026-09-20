@@ -172,6 +172,44 @@ Mit `?test=1` an der URL liegen `normalize`, `fold`, `lev`, `checkAnswer` und
 `parseImport` unter `window.__vt` zum Prüfen in der Konsole. 27 Fälle sind so
 abgedeckt (siehe „Geprüft").
 
+## Aussprache
+
+Ein Lautsprecher-Knopf auf der Frage-Karte spricht das englische Wort. Bei
+**DE → EN erscheint er erst nach der Antwort** – vorher wäre er die Lösung.
+In den Einstellungen lässt sich die Aussprache ganz abschalten, auf
+*automatisch vorlesen* stellen (ohne Antippen, sobald das Wort sichtbar ist)
+und mit einem Testknopf ausprobieren.
+
+Nicht alles, was dasteht, wird auch vorgelesen: Klammerzusätze sind
+Grammatikhinweise, und „shelf, shelves" ist eine Schreibweise, keine
+Aussprache. `speakableEn()` macht daraus „shelf". Ganze Sätze bleiben
+vollständig.
+
+### Warum das nativ laufen muss
+
+`window.speechSynthesis` ist in einer **Android-WebView nicht
+implementiert** – in Chrome für Android läuft es, in der WebView nicht
+([Chromium-Issue 487255](https://issues.chromium.org/issues/40417848), seit
+2015 offen). Die App benutzt deshalb auf dem Gerät eine JS-Brücke zu Androids
+`TextToSpeech` (`android-src/TtsBridge.java`, registriert als
+`window.AndroidTts`) und fällt nur im Desktop-Browser auf `speechSynthesis`
+zurück – dort wird schließlich getestet.
+
+Zweite Falle: **ab targetSdk 30 sieht eine App fremde Dienste nur noch, wenn
+sie sie im Manifest unter `<queries>` nennt.** Ohne
+
+```xml
+<queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>
+```
+
+findet `TextToSpeech` keine Engine und meldet still einen Init-Fehler. Das
+setzt `build.ps1` (Patch 3); im Browser fällt es nicht auf, weil dort der
+andere Zweig greift.
+
+Gesprochen wird britisches Englisch (`Locale.UK`, Green Line spielt in
+London), mit US-Stimme als Rückfall und `setSpeechRate(0.9f)` – es geht ums
+Nachsprechen, nicht ums Tempo.
+
 ## Wortschatz eingrenzen (Hausaufgabe)
 
 Eine Lektion hat 84 bis 157 Vokabeln – niemand lernt die an einem Tag. Jedes
@@ -252,8 +290,8 @@ source-pdfs/         gitignored
 
 Die aktuelle signierte Release-APK liegt unter [`dist/`](dist/) und lässt
 sich direkt aufs Handy laden:
-**[Vokabeltrainer-1.3.apk](https://github.com/guushansen-pixel/greeeeeeeeeeeeen/raw/main/dist/Vokabeltrainer-1.3.apk)**
-(739 KB, min. Android 7, keine Internet-Berechtigung).
+**[Vokabeltrainer-1.4.apk](https://github.com/guushansen-pixel/greeeeeeeeeeeeen/raw/main/dist/Vokabeltrainer-1.4.apk)**
+(741 KB, min. Android 7, keine Internet-Berechtigung).
 
 Auf dem Gerät muss die Installation aus unbekannten Quellen erlaubt sein.
 Im `dist/` liegt bewusst immer nur die neueste Fassung – jede weitere würde
@@ -310,6 +348,21 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
 - Die längste Liste („Alles gemischt", 1.099 Zeilen) baut sich in 64 ms auf
 - Kein horizontales Scrollen auf 375 px auf allen Bildschirmen
 - Helles und dunkles Theme
+- Aussprache, soweit im Browser prüfbar: der Knopf erscheint bei EN → DE
+  sofort und bei DE → EN **erst nach der Antwort** (vorher wäre er die
+  Lösung), `speakableEn()` besteht acht Fälle (Klammern, Aufzählungen, ganze
+  Sätze bleiben ganz), *automatisch vorlesen* greift ohne Antippen, der
+  Abschalter entfernt den Knopf, und Enter auf dem Anhören-Knopf springt
+  nicht zur nächsten Vokabel
+- Am fertigen APK nachgeprüft, nicht nur am Skript: `TtsBridge` liegt in den
+  generierten Quellen, `MainActivity` hat Feld, `addJavascriptInterface` und
+  `onDestroy`, die Klasse ist in `classes.dex` kompiliert, und das
+  `<queries>`-Element steht im gepackten Manifest (`aapt2 dump xmltree`)
+
+**Nicht prüfbar ohne Gerät:** ob tatsächlich Ton herauskommt. Der Browser hier
+hat keine Sprachausgabe, und die native Brücke greift ohnehin nur in der
+WebView – im Test wurde deshalb abgefangen, *was* gesprochen würde, nicht
+*dass* es zu hören ist. Der Testknopf in den Einstellungen ist genau dafür da.
 
 **Am Gerät bestätigt** (Pixel 11 Pro, v1.3, 20.09.2026) – das ließ sich im
 Desktop-Browser nicht prüfen:
@@ -328,7 +381,7 @@ auch nicht gezielt gegengeprüft.
 
 ## Bewusst nicht drin
 
-Aussprache/Text-to-Speech, die Phonetik-Spalte (Kletts ASCII-Notation bräuchte
+Die Phonetik-Spalte (Kletts ASCII-Notation bräuchte
 eine Mapping-Tabelle), die ukrainische/arabische Spalte als
 Herkunftssprachen-Modus, Lernstatistiken über die Zeit, Erinnerungen, und die
 Reihe „Green Line New Bayern" (andere Ausgabe – wäre ein Konverter-Lauf plus

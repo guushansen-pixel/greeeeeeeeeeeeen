@@ -59,6 +59,11 @@ Write-Host ("  [info] {0} Vokabelpakete werden mitgebaut" -f $packs.Count) -Fore
 
 $javaDir = Join-Path $appDir ("app\src\main\java\" + $PackageId.Replace('.', '\'))
 
+# --- Sprachausgabe-Bruecke hineinkopieren (nicht Teil des Templates) -----
+# Liegt als echte Quelldatei vor statt als PowerShell-String: lesbarer, und
+# javac meldet Fehler dann an der richtigen Stelle.
+Copy-Item "$Project\android-src\TtsBridge.java" $javaDir -Force
+
 # --- AndroidManifest.xml: Portrait-Lock + Predictive Back ----------------
 $manifestPath = Join-Path $appDir 'app\src\main\AndroidManifest.xml'
 $manifest = Get-Content $manifestPath -Raw
@@ -78,6 +83,17 @@ if ($manifest -notmatch [regex]::Escape($themeNeedle)) {
     throw "Manifest-Patchziel (theme) nicht gefunden - hat sich das apk-builder-Template geaendert?"
 }
 $manifest = $manifest -replace [regex]::Escape($themeNeedle), ('android:theme="@style/AppTheme"' + "`n        android:enableOnBackInvokedCallback=`"true`">")
+
+# Patch 3: Ab targetSdk 30 sieht eine App fremde Dienste nur noch, wenn sie
+# sie in <queries> nennt. Ohne diesen Block findet TextToSpeech keine Engine
+# und meldet still einen Init-Fehler - im Desktop-Browser faellt das nicht
+# auf, weil dort speechSynthesis benutzt wird.
+$appOpenNeedle = '    <application'
+if ($manifest -notmatch [regex]::Escape($appOpenNeedle)) {
+    throw "Manifest-Patchziel (<application>) nicht gefunden - hat sich das apk-builder-Template geaendert?"
+}
+$queriesBlock = "    <queries>`n        <intent>`n            <action android:name=`"android.intent.action.TTS_SERVICE`" />`n        </intent>`n    </queries>`n`n" + $appOpenNeedle
+$manifest = $manifest -replace [regex]::Escape($appOpenNeedle), $queriesBlock
 
 Write-TextNoBom -Path $manifestPath -Content $manifest
 
@@ -113,9 +129,35 @@ if ($java -notmatch [regex]::Escape($keepScreenOnNeedle)) {
 $predictiveBackSnippet = $keepScreenOnNeedle + "`n`n        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {`n            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(`n                    OnBackInvokedDispatcher.PRIORITY_DEFAULT,`n                    () -> {`n                        if (webView.canGoBack()) {`n                            webView.goBack();`n                        } else {`n                            finish();`n                        }`n                    });`n        }"
 $java = $java -replace [regex]::Escape($keepScreenOnNeedle), $predictiveBackSnippet
 
+# Patch 5: Sprachausgabe-Bruecke anlegen und als window.AndroidTts
+# registrieren. Als Feld, damit onDestroy sie wieder abbauen kann - eine
+# offene TextToSpeech-Instanz haelt sonst einen Dienst am Leben.
+$fieldNeedle = 'private WebView webView;'
+if ($java -notmatch [regex]::Escape($fieldNeedle)) {
+    throw "MainActivity.java Feld-Patchziel nicht gefunden - hat sich das apk-builder-Template geaendert?"
+}
+$java = $java -replace [regex]::Escape($fieldNeedle), ($fieldNeedle + "`n`n    private TtsBridge tts;")
+
+$clientNeedle = 'webView.setWebViewClient(new LocalWebViewClient());'
+if ($java -notmatch [regex]::Escape($clientNeedle)) {
+    throw "MainActivity.java JS-Bridge-Patchziel nicht gefunden - hat sich das apk-builder-Template geaendert?"
+}
+$java = $java -replace [regex]::Escape($clientNeedle), ("tts = new TtsBridge(this);`n        webView.addJavascriptInterface(tts, `"AndroidTts`");`n`n        " + $clientNeedle)
+
+# Patch 6: onDestroy gibt es im Template nicht - dazuschreiben.
+$saveStateNeedle = @'
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+'@
+if ($java -notmatch [regex]::Escape($saveStateNeedle)) {
+    throw "MainActivity.java onDestroy-Patchziel nicht gefunden - hat sich das apk-builder-Template geaendert?"
+}
+$onDestroy = "    @Override`n    protected void onDestroy() {`n        if (tts != null) {`n            tts.shutdown();`n            tts = null;`n        }`n        super.onDestroy();`n    }`n`n" + $saveStateNeedle
+$java = $java -replace [regex]::Escape($saveStateNeedle), $onDestroy
+
 Write-TextNoBom -Path $mainActivityPath -Content $java
 
-Write-Host "  [ok] Patches angewendet (Portrait-Lock, Keep-Screen-On, Predictive Back)" -ForegroundColor Green
+Write-Host "  [ok] Patches angewendet (Portrait-Lock, Keep-Screen-On, Predictive Back, Sprachausgabe)" -ForegroundColor Green
 
 if ($Release -and $Install) {
     & "$ApkBuilder\build-apk.ps1" -App $AppName -Release -Install

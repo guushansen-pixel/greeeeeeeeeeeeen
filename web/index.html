@@ -201,6 +201,12 @@
                 text-transform: uppercase; font-weight: 700; }
   .qcard .prompt { font-size: 29px; font-weight: 680; margin: 10px 0 4px; line-height: 1.25; }
   .qcard .hint { font-size: 14px; color: var(--fg-dim); }
+  .speakbtn {
+    margin-top: 14px; background: none; border: 1px solid var(--border);
+    color: var(--fg-dim); border-radius: 999px; padding: 9px 17px;
+    cursor: pointer; font-weight: 600; font-size: 15px; min-height: 44px;
+  }
+  .speakbtn:active { background: var(--bg-soft); }
   .qcard.good { background: var(--ok-soft); border-color: var(--ok); }
   .qcard.almost { background: var(--warn-soft); border-color: var(--warn); }
   .qcard.bad { background: var(--bad-soft); border-color: var(--bad); }
@@ -362,6 +368,7 @@
       <div class="dir" id="qDir"></div>
       <div class="prompt" id="qPrompt"></div>
       <div class="hint" id="qHint"></div>
+      <button class="speakbtn" id="qSpeak" hidden>&#128266;&nbsp; Anhören</button>
     </div>
     <div class="opts" id="qOpts"></div>
     <div class="answerbox" id="qAnswerBox" hidden>
@@ -458,7 +465,7 @@ grandmother - Oma"></textarea>
   var settings = loadJSON(K_SETTINGS, {});
   var defaults = {
     theme: 'system', band: 'gl1', dir: 'en2de', mode: 'mix',
-    size: 15, wordsOnly: true
+    size: 15, wordsOnly: true, speak: true, autoSpeak: false
   };
   for (var d in defaults) if (!(d in settings)) settings[d] = defaults[d];
 
@@ -505,6 +512,50 @@ grandmother - Oma"></textarea>
     else document.documentElement.setAttribute('data-theme', t);
   }
   applyTheme();
+
+  // =====================================================================
+  //  Aussprache
+  // =====================================================================
+  // window.speechSynthesis gibt es in einer Android-WebView nicht (offener
+  // Chromium-Bug seit 2015) - auf dem Gerät kommt die Sprachausgabe deshalb
+  // über die native Brücke aus android-src/TtsBridge.java. Der
+  // speechSynthesis-Zweig bleibt für den Desktop-Browser, in dem getestet
+  // wird, und für eine spätere Nutzung am Mac.
+  var androidTts = window.AndroidTts || null;
+
+  function ttsAvailable() {
+    if (androidTts) {
+      try { return androidTts.isReady(); } catch (e) { return false; }
+    }
+    return !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+  }
+
+  // Was vorgelesen wird, ist nicht immer das, was dasteht: Klammerzusätze
+  // sind Grammatikhinweise, und "shelf, shelves" ist eine Schreibweise,
+  // keine Aussprache. Ganze Sätze bleiben vollständig.
+  function speakableEn(text) {
+    var s = String(text).replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+    var comma = s.indexOf(',');
+    if (comma > 0 && !/[.!?]$/.test(s)) s = s.slice(0, comma);
+    return s.trim();
+  }
+
+  function speakEn(text) {
+    if (!settings.speak) return;
+    var t = speakableEn(text);
+    if (!t) return;
+    if (androidTts) {
+      try { androidTts.speak(t); } catch (e) {}
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(t);
+      u.lang = 'en-GB';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
 
   function confirmDialog(text, onYes) {
     $('dlgText').innerHTML = text;
@@ -1523,6 +1574,12 @@ grandmother - Oma"></textarea>
     if (it.word.sec) hints.push(secLabel(it.word.sec));
     $('qHint').textContent = hints.join(' · ');
 
+    // Bei DE → EN ist das englische Wort die gesuchte Lösung - vorlesen
+    // würde die Frage beantworten. Der Knopf kommt dort erst danach.
+    var speakNow = settings.speak && it.dir === 'en2de' && ttsAvailable();
+    $('qSpeak').hidden = !speakNow;
+    if (speakNow && settings.autoSpeak) speakEn(it.prompt);
+
     $('qFeedback').className = 'feedback';
     $('qOpts').innerHTML = '';
     $('qAnswerBox').hidden = true;
@@ -1598,6 +1655,13 @@ grandmother - Oma"></textarea>
       $('qfSol').innerHTML = 'Richtig ist: <b>' + esc(it.solutions.join('; ')) + '</b>';
     }
 
+    // Jetzt ist die Lösung heraus - ab hier darf das englische Wort auch
+    // bei DE → EN angehört werden.
+    if (settings.speak && ttsAvailable()) {
+      $('qSpeak').hidden = false;
+      if (settings.autoSpeak && it.dir === 'de2en') speakEn(it.solutions[0]);
+    }
+
     // Eingabefeld stilllegen, damit die Tastatur auf dem Handy zugeht und
     // niemand zweimal auf "Pruefen" tippt.
     $('qInput').blur();
@@ -1623,6 +1687,11 @@ grandmother - Oma"></textarea>
 
   $('qCheck').onclick = answerInput;
   $('qNext').onclick = nextQuestion;
+  $('qSpeak').onclick = function () {
+    if (!quiz) return;
+    var it = quiz.items[quiz.i];
+    speakEn(it.dir === 'en2de' ? it.prompt : it.solutions[0]);
+  };
   $('qInput').addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
@@ -1636,6 +1705,9 @@ grandmother - Oma"></textarea>
     if (current !== 'quiz' || !quiz || !quiz.answered) return;
     // Doppelauslösung zusammen mit dem nativen Klick des fokussierten
     // Weiter-Knopfes faengt nextQuestion() selbst ab.
+    // Der Anhören-Knopf ist die eine Ausnahme: dort soll Enter vorlesen und
+    // nicht zur nächsten Vokabel springen.
+    if (e.target === $('qSpeak')) return;
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nextQuestion(); }
   });
 
@@ -1691,6 +1763,20 @@ grandmother - Oma"></textarea>
     html += segRow('Farben', 'theme', [
       { v: 'system', t: 'System' }, { v: 'light', t: 'Hell' }, { v: 'dark', t: 'Dunkel' }
     ]);
+    html += '<div class="row"><div class="lbl">Aussprache<div class="tiny muted">' +
+      'Englische Wörter anhören</div></div>' +
+      '<button class="switch' + (settings.speak ? ' on' : '') + '" id="speakSw">' +
+      '<span class="knob"></span></button></div>';
+    if (settings.speak) {
+      html += '<div class="row"><div class="lbl">Automatisch vorlesen<div class="tiny muted">' +
+        'Ohne Antippen, sobald das Wort zu sehen ist</div></div>' +
+        '<button class="switch' + (settings.autoSpeak ? ' on' : '') + '" id="autoSpeakSw">' +
+        '<span class="knob"></span></button></div>';
+      html += '<div class="row"><div class="lbl">Sprachausgabe testen<div class="tiny muted" ' +
+        'id="ttsStatus">Spricht „Hello, this is your vocabulary trainer."</div></div>' +
+        '<button class="btn ghost" id="ttsTestBtn" style="width:auto">Anhören</button></div>';
+    }
+
     html += '<div class="row"><div class="lbl">Gelernt<div class="tiny muted">' +
       plural(stats.sessions, 'Übung', 'Übungen') + ' · ' +
       plural(stats.answers, 'Antwort', 'Antworten') + ' · ' +
@@ -1709,6 +1795,31 @@ grandmother - Oma"></textarea>
         renderSettings();
       };
     }
+    $('speakSw').onclick = function () {
+      settings.speak = !settings.speak;
+      persistSettings();
+      renderSettings();
+    };
+    if (settings.speak) {
+      $('autoSpeakSw').onclick = function () {
+        settings.autoSpeak = !settings.autoSpeak;
+        persistSettings();
+        this.classList.toggle('on', settings.autoSpeak);
+      };
+      $('ttsTestBtn').onclick = function () {
+        // Ein stiller Fehlschlag wäre hier das Schlimmste - lieber sagen,
+        // dass auf dem Gerät keine Sprachausgabe bereitsteht.
+        if (!ttsAvailable()) {
+          $('ttsStatus').innerHTML = '<b>Keine Sprachausgabe gefunden.</b> Unter ' +
+            'Android-Einstellungen → Sprachausgabe muss eine Engine mit ' +
+            'englischer Stimme installiert und aktiv sein.';
+          return;
+        }
+        $('ttsStatus').textContent = 'Sollte jetzt zu hören sein.';
+        speakEn('Hello, this is your vocabulary trainer.');
+      };
+    }
+
     $('resetBtn').onclick = function () {
       confirmDialog('Wirklich den <b>gesamten Lernfortschritt</b> löschen? ' +
         'Eigene Listen bleiben erhalten.', function () {
@@ -1735,7 +1846,8 @@ grandmother - Oma"></textarea>
     window.__vt = { normalize: normalize, fold: fold, lev: lev,
                     checkAnswer: checkAnswer, parseImport: parseImport,
                     buildOptions: buildOptions, similarity: similarity,
-                    makeItem: makeItem, wordsOfUnit: wordsOfUnit };
+                    makeItem: makeItem, wordsOfUnit: wordsOfUnit,
+                    speakableEn: speakableEn };
   }
 
   renderHome();
