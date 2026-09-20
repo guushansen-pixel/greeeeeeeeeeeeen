@@ -1,0 +1,6 @@
+# Generierte Vokabeldaten: Inhalt stammt aus den kostenlosen Klett-Vokabellisten
+# ("(c) Ernst Klett Verlag ... Alle Rechte vorbehalten"). Privat nutzen ist ok,
+# weiterverbreiten nicht - deshalb bleiben Rohdaten und Generat aus dem Repo.
+# Neu erzeugen: tools\fetch-vocab.ps1 und danach tools\build-vocab.ps1
+source-pdfs/
+web/data/vocab.gl*.js

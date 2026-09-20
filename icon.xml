@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher-Icon fuer den Vokabeltrainer: ein Stapel Vokabelkarten, die
+     oberste in Creme mit einem gruenen Haken - "Vokabel sitzt".
+     108x108, das Motiv bleibt innerhalb von Radius 31 um die Mitte (54,54),
+     damit die runde Launcher-Maske nichts abschneidet (die aeussersten
+     Kartenecken liegen bei rund 31,1). Der Haken ist eigenstaendig
+     eingefaerbt und nicht hintergrundfarben, damit er auch bei einer anderen
+     IconBackground-Farbe erkennbar bleibt. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- hinterste Karte -->
+    <path android:fillColor="#0B6B52"
+        android:pathData="M43,32 h28 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-28 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 z" />
+
+    <!-- mittlere Karte -->
+    <path android:fillColor="#14A47C"
+        android:pathData="M40,37 h28 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-28 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 z" />
+
+    <!-- vorderste Karte -->
+    <path android:fillColor="#F6F2E7"
+        android:pathData="M37,42 h28 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-28 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 z" />
+
+    <!-- Haken auf der vordersten Karte -->
+    <path android:fillColor="#0E9B76"
+        android:pathData="M42.5,56.5 l5,5.4 l11,-12.4 l4,3.6 l-15,16.9 l-9,-9.7 z" />
+</vector>
