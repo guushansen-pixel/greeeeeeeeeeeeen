@@ -359,13 +359,17 @@ Im Browser über `http://localhost:8099` (Chromium, Viewport 375 px):
   `onDestroy`, die Klasse ist in `classes.dex` kompiliert, und das
   `<queries>`-Element steht im gepackten Manifest (`aapt2 dump xmltree`)
 
-**Nicht prüfbar ohne Gerät:** ob tatsächlich Ton herauskommt. Der Browser hier
-hat keine Sprachausgabe, und die native Brücke greift ohnehin nur in der
-WebView – im Test wurde deshalb abgefangen, *was* gesprochen würde, nicht
-*dass* es zu hören ist. Der Testknopf in den Einstellungen ist genau dafür da.
+Im Browser lässt sich nur prüfen, *was* gesprochen würde, nicht *dass* es zu
+hören ist – dafür der Testknopf in den Einstellungen. Er ist am Gerät
+durchgelaufen (siehe unten).
 
-**Am Gerät bestätigt** (Pixel 11 Pro, v1.3, 20.09.2026) – das ließ sich im
-Desktop-Browser nicht prüfen:
+**Am Gerät bestätigt** (Pixel 11 Pro, v1.3/v1.4, 20.09.2026) – das ließ sich
+im Desktop-Browser nicht prüfen:
+
+- **Die Sprachausgabe kommt hörbar heraus** (über *Einstellungen →
+  Sprachausgabe testen*). Damit ist die native Brücke am Gerät bestätigt:
+  `TextToSpeech` findet eine Engine, das `<queries>`-Element im Manifest
+  greift, und die englische Stimme ist vorhanden
 
 - Zurück-Wischgeste bricht die Übung nicht hart ab, sondern führt zum Start.
   Der Predictive-Back-Patch in `build.ps1` greift also – er war hier von
@@ -375,9 +379,10 @@ Desktop-Browser nicht prüfen:
 - Die Vokabelliste scrollt flüssig, auch bei einer großen Unit
 - Portrait-Lock sitzt
 
-Ohne Befund bisher: das WebView-Force-Dark-Verhalten und ob der Bildschirm
-über eine ganze Übung wach bleibt – beides fiel nicht negativ auf, wurde aber
-auch nicht gezielt gegengeprüft.
+Ohne Befund bisher: das WebView-Force-Dark-Verhalten, ob der Bildschirm über
+eine ganze Übung wach bleibt, und ob der Anhören-Knopf mitten in einer
+laufenden Übung ebenso zuverlässig spricht wie der Testknopf – nichts davon
+fiel negativ auf, gezielt gegengeprüft wurde es aber auch nicht.
 
 ## Bewusst nicht drin
 
